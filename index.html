@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nobel Prize Winners</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        select {
+            margin-bottom: 10px;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        strong {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Nobel Prize Winners</h1>
+
+    <h2>Multi-Time Winners</h2>
+    <ul id="multiTimeWinners"></ul>
+
+    <h2>All Prize Winners</h2>
+    <label for="year">Select Year:</label>
+    <select id="year"></select>
+
+    <label for="category">Select Category:</label>
+    <select id="category"></select>
+
+    <ul id="prizeList"></ul>
+
+    <script>
+        function fetchPrizes(url) {
+            return fetch(url)
+                .then(response => response.json())
+                .then(data => data.prizes || []);
+        }
+
+        function getMultiTimeWinners(prizes) {
+            const winnersCount = {};
+            const multiTimeWinners = [];
+
+            prizes.forEach(prize => {
+                prize.laureates.forEach(laureate => {
+                    const laureateId = laureate.id;
+                    winnersCount[laureateId] = (winnersCount[laureateId] || 0) + 1;
+
+                    if (winnersCount[laureateId] > 1 && !multiTimeWinners.some(winner => winner.id === laureateId)) {
+                        multiTimeWinners.push(laureate);
+                    }
+                });
+            });
+
+            return multiTimeWinners;
+        }
+
+        function populateDropdown(selectId, options) {
+            const select = document.getElementById(selectId);
+            select.innerHTML = '';
+
+            options.forEach(option => {
+                const optionElement = document.createElement('option');
+                optionElement.textContent = option;
+                select.appendChild(optionElement);
+            });
+        }
+
+        function filterPrizes(prizes, year, category) {
+            return prizes.filter(prize => (
+                (!year || prize.year === year) &&
+                (!category || prize.category === category)
+            ));
+        }
+
+        function displayPrizes(prizes) {
+            const prizeList = document.getElementById('prizeList');
+            prizeList.innerHTML = '';
+
+            prizes.forEach(prize => {
+                const li = document.createElement('li');
+                li.innerHTML = `<strong>Year:</strong> ${prize.year} | <strong>Category:</strong> ${prize.category} | <strong>Motivation:</strong> ${prize.motivation} | <strong>Laureates:</strong>`;
+                
+                const ul = document.createElement('ul');
+                prize.laureates.forEach(laureate => {
+                    const laureateLi = document.createElement('li');
+                    laureateLi.textContent = `${laureate.firstname} ${laureate.surname}`;
+                    ul.appendChild(laureateLi);
+                });
+
+                li.appendChild(ul);
+                prizeList.appendChild(li);
+            });
+        }
+
+        const apiUrl = 'http://api.nobelprize.org/v1/prize.json';
+
+        fetchPrizes(apiUrl)
+            .then(prizes => {
+                const multiTimeWinners = getMultiTimeWinners(prizes);
+                const uniqueYears = [...new Set(prizes.map(prize => prize.year))];
+                const uniqueCategories = [...new Set(prizes.map(prize => prize.category))];
+
+                populateDropdown('year', uniqueYears);
+                populateDropdown('category', uniqueCategories);
+
+                document.getElementById('multiTimeWinners').innerHTML = multiTimeWinners.map(winner => `<li>${winner.firstname} ${winner.surname}</li>`).join('');
+
+                document.getElementById('year').addEventListener('change', updateFilter);
+                document.getElementById('category').addEventListener('change', updateFilter);
+
+                function updateFilter() {
+                    const selectedYear = document.getElementById('year').value;
+                    const selectedCategory = document.getElementById('category').value;
+                    const filteredPrizes = filterPrizes(prizes, selectedYear, selectedCategory);
+                    displayPrizes(filteredPrizes);
+                }
+
+                updateFilter(); // Initial display
+            })
+            .catch(error => console.error('Error fetching data:', error));
+    </script>
+</body>
+</html>
